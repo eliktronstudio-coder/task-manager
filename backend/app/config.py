@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, field_validator
 from typing import Optional
 
 
@@ -25,6 +25,17 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def _default_database_name(cls, url: str) -> str:
+        # Без имени базы asyncpg подставляет имя пользователя, а пулер Supabase такой базы не знает
+        from sqlalchemy.engine import make_url
+        url = url.strip()
+        parsed = make_url(url)
+        if parsed.get_backend_name() == "postgresql" and not parsed.database:
+            return parsed.set(database="postgres").render_as_string(hide_password=False)
+        return url
 
     @property
     def public_url(self) -> str:
