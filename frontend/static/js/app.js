@@ -80,7 +80,7 @@ function statusBadgeClass(s) {
 }
 
 function sectionLabel(s) {
-  const m = { preparation: 'Подготовка к открытию', delivery: 'Поставки', quality: 'Качество открытия' };
+  const m = { preparation: 'Подготовка исходников', delivery: 'Поставки', quality: 'Качество открытия' };
   return m[s] || s;
 }
 

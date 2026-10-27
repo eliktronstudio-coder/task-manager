@@ -12,7 +12,7 @@ class TaskStatus(str, PyEnum):
 
 
 class TaskSection(str, PyEnum):
-    PREPARATION = "preparation"    # Подготовка к открытию
+    PREPARATION = "preparation"    # Подготовка исходников
     DELIVERY = "delivery"          # Поставки
     QUALITY = "quality"            # Качество открытия магазина
 

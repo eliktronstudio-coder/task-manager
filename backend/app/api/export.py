@@ -23,7 +23,7 @@ STATUS_LABELS = {
 }
 
 SECTION_LABELS = {
-    TaskSection.PREPARATION: "Подготовка к открытию",
+    TaskSection.PREPARATION: "Подготовка исходников",
     TaskSection.DELIVERY: "Поставки",
     TaskSection.QUALITY: "Качество открытия",
 }

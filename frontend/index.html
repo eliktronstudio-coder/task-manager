@@ -72,7 +72,7 @@
                   <i class="bi bi-building fs-4 text-primary"></i>
                 </div>
                 <div>
-                  <div class="fw-semibold">Подготовка к открытию</div>
+                  <div class="fw-semibold">Подготовка исходников</div>
                   <div class="text-muted small">Задачи по подготовке</div>
                 </div>
                 <i class="bi bi-chevron-right ms-auto text-muted"></i>
@@ -174,7 +174,7 @@
                 <label class="form-label small">Раздел</label>
                 <select class="form-select form-select-sm" x-model="activeFilter.section" @change="loadTasks()">
                   <option value="">Все</option>
-                  <option value="preparation">Подготовка</option>
+                  <option value="preparation">Подготовка исходников</option>
                   <option value="delivery">Поставки</option>
                   <option value="quality">Качество</option>
                 </select>
@@ -397,7 +397,7 @@
               <label class="form-label">Раздел *</label>
               <select class="form-select" x-model="form.section" @change="loadTemplates()" required>
                 <option value="">Выберите раздел</option>
-                <option value="preparation">Подготовка к открытию</option>
+                <option value="preparation">Подготовка исходников</option>
                 <option value="delivery">Поставки</option>
                 <option value="quality">Качество открытия</option>
               </select>
