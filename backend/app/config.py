@@ -1,0 +1,42 @@
+from pydantic_settings import BaseSettings
+from pydantic import Field
+from typing import Optional
+
+
+class Settings(BaseSettings):
+    # Telegram Bot
+    BOT_TOKEN: str = Field(..., description="Токен бота от @BotFather")
+    TELEGRAM_API_BASE: str = "https://api.telegram.org"
+    WEBHOOK_URL: Optional[str] = None   # Если пусто — long polling
+    WEBHOOK_SECRET: Optional[str] = None
+
+    # БД
+    DATABASE_URL: str = "sqlite+aiosqlite:///./data/taskmanager.db"
+
+    # Приложение
+    APP_SECRET_KEY: str = "change-me-in-production-please"
+    APP_HOST: str = "0.0.0.0"
+    APP_PORT: int = 8000
+    DEBUG: bool = False
+
+    # Telegram user ID администраторов (через запятую)
+    ADMIN_TG_IDS: str = ""
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
+    @property
+    def public_url(self) -> str:
+        if self.WEBHOOK_URL:
+            return self.WEBHOOK_URL.removesuffix("/").removesuffix("/webhook")
+        return f"http://localhost:{self.APP_PORT}"
+
+    @property
+    def admin_ids_list(self) -> list[int]:
+        if not self.ADMIN_TG_IDS:
+            return []
+        return [int(x.strip()) for x in self.ADMIN_TG_IDS.split(",") if x.strip()]
+
+
+settings = Settings()

@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Задачи — Контроль открытия</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="static/css/app.css">
+</head>
+<body>
+  <div id="app" x-data="taskApp()" x-init="init()">
+
+    <!-- Навигация -->
+    <nav class="navbar navbar-dark bg-primary sticky-top">
+      <div class="container-fluid">
+        <span class="navbar-brand fw-bold">
+          <i class="bi bi-shop me-2"></i>Задачи
+        </span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-white small" x-text="currentEmployee?.full_name || 'Загрузка...'"></span>
+          <button class="btn btn-sm btn-outline-light" @click="page='settings'">
+            <i class="bi bi-gear"></i>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Загрузка -->
+    <div class="text-center py-5" x-show="loading">
+      <div class="spinner-border text-primary"></div>
+      <p class="mt-2 text-muted">Загрузка...</p>
+    </div>
+
+    <!-- Контент страниц -->
+    <div class="container-fluid px-3 py-3" x-show="!loading">
+
+      <!-- ГЛАВНАЯ -->
+      <div x-show="page === 'home'">
+        <div class="row g-3 mb-4">
+          <div class="col-4">
+            <div class="card text-center border-0 shadow-sm" @click="filterAndGo('in_progress')">
+              <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-primary" x-text="counts.in_progress"></div>
+                <div class="small text-muted">В работе</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="card text-center border-0 shadow-sm bg-danger bg-opacity-10" @click="filterAndGo('critical')">
+              <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-danger" x-text="counts.critical"></div>
+                <div class="small text-muted">Критично</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="card text-center border-0 shadow-sm bg-warning bg-opacity-10" @click="filterAndGo('overdue')">
+              <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-warning" x-text="counts.overdue"></div>
+                <div class="small text-muted">Просрочено</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12">
+            <div class="card border-0 shadow-sm" @click="page='tasks'; activeFilter={section:'preparation'}; loadTasks()">
+              <div class="card-body d-flex align-items-center">
+                <div class="rounded-3 p-3 bg-primary bg-opacity-10 me-3">
+                  <i class="bi bi-building fs-4 text-primary"></i>
+                </div>
+                <div>
+                  <div class="fw-semibold">Подготовка к открытию</div>
+                  <div class="text-muted small">Задачи по подготовке</div>
+                </div>
+                <i class="bi bi-chevron-right ms-auto text-muted"></i>
+              </div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="card border-0 shadow-sm" @click="page='tasks'; activeFilter={section:'delivery'}; loadTasks()">
+              <div class="card-body d-flex align-items-center">
+                <div class="rounded-3 p-3 bg-success bg-opacity-10 me-3">
+                  <i class="bi bi-truck fs-4 text-success"></i>
+                </div>
+                <div>
+                  <div class="fw-semibold">Поставки</div>
+                  <div class="text-muted small">Контроль поставок</div>
+                </div>
+                <i class="bi bi-chevron-right ms-auto text-muted"></i>
+              </div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="card border-0 shadow-sm" @click="page='tasks'; activeFilter={section:'quality'}; loadTasks()">
+              <div class="card-body d-flex align-items-center">
+                <div class="rounded-3 p-3 bg-warning bg-opacity-10 me-3">
+                  <i class="bi bi-stars fs-4 text-warning"></i>
+                </div>
+                <div>
+                  <div class="fw-semibold">Качество открытия</div>
+                  <div class="text-muted small">Замечания и контроль</div>
+                </div>
+                <i class="bi bi-chevron-right ms-auto text-muted"></i>
+              </div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="card border-0 shadow-sm" @click="page='tasks'; activeFilter={}; loadTasks()">
+              <div class="card-body d-flex align-items-center">
+                <div class="rounded-3 p-3 bg-secondary bg-opacity-10 me-3">
+                  <i class="bi bi-list-task fs-4 text-secondary"></i>
+                </div>
+                <div>
+                  <div class="fw-semibold">Все мои задачи</div>
+                  <div class="text-muted small">Полный список</div>
+                </div>
+                <i class="bi bi-chevron-right ms-auto text-muted"></i>
+              </div>
+            </div>
+          </div>
+          <!-- Руководитель: все задачи -->
+          <div class="col-12" x-show="currentEmployee?.is_admin">
+            <div class="card border-0 shadow-sm border-primary" @click="page='admin_tasks'; loadAllTasks()">
+              <div class="card-body d-flex align-items-center">
+                <div class="rounded-3 p-3 bg-primary bg-opacity-20 me-3">
+                  <i class="bi bi-grid-3x3-gap fs-4 text-primary"></i>
+                </div>
+                <div>
+                  <div class="fw-semibold text-primary">Все задачи (руководитель)</div>
+                  <div class="text-muted small">Сводка по сотрудникам и магазинам</div>
+                </div>
+                <i class="bi bi-chevron-right ms-auto text-muted"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <button class="btn btn-primary w-100" @click="page='create_task'">
+            <i class="bi bi-plus-lg me-2"></i>Создать задачу
+          </button>
+        </div>
+      </div>
+
+      <!-- СПИСОК ЗАДАЧ -->
+      <div x-show="page === 'tasks'">
+        <div class="d-flex align-items-center mb-3 gap-2">
+          <button class="btn btn-sm btn-outline-secondary" @click="page='home'">
+            <i class="bi bi-arrow-left"></i>
+          </button>
+          <h5 class="mb-0 flex-grow-1">Мои задачи</h5>
+          <button class="btn btn-sm btn-outline-primary" @click="showFilter=!showFilter">
+            <i class="bi bi-funnel"></i>
+          </button>
+        </div>
+
+        <!-- Фильтры -->
+        <div x-show="showFilter" class="card mb-3 border-0 shadow-sm">
+          <div class="card-body">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small">Статус</label>
+                <select class="form-select form-select-sm" x-model="activeFilter.status" @change="loadTasks()">
+                  <option value="">Все</option>
+                  <option value="in_progress">В работе</option>
+                  <option value="critical">Критично</option>
+                  <option value="closed">Закрыто</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small">Раздел</label>
+                <select class="form-select form-select-sm" x-model="activeFilter.section" @change="loadTasks()">
+                  <option value="">Все</option>
+                  <option value="preparation">Подготовка</option>
+                  <option value="delivery">Поставки</option>
+                  <option value="quality">Качество</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small">Магазин</label>
+                <select class="form-select form-select-sm" x-model="activeFilter.store_id" @change="loadTasks()">
+                  <option value="">Все</option>
+                  <template x-for="s in stores">
+                    <option :value="s.id" x-text="s.name"></option>
+                  </template>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small">Просрочено</label>
+                <select class="form-select form-select-sm" x-model="activeFilter.overdue_only" @change="loadTasks()">
+                  <option value="">Все</option>
+                  <option value="true">Только просроченные</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Список -->
+        <div x-show="taskList.length === 0" class="text-center py-5 text-muted">
+          <i class="bi bi-inbox fs-1"></i>
+          <p class="mt-2">Задач нет</p>
+        </div>
+        <div class="d-flex flex-column gap-2">
+          <template x-for="task in taskList" :key="task.id">
+            <div class="card border-0 shadow-sm" :class="taskCardClass(task)" @click="openTask(task.id)">
+              <div class="card-body py-2 px-3">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div class="fw-semibold small" x-text="task.title" style="max-width:70%"></div>
+                  <span class="badge" :class="statusBadgeClass(task.status)" x-text="statusLabel(task.status)"></span>
+                </div>
+                <div class="text-muted small mt-1">
+                  <i class="bi bi-shop me-1"></i><span x-text="task.store?.name || '—'"></span>
+                  <span class="ms-2" x-show="task.deadline">
+                    <i class="bi bi-calendar-event me-1"></i>
+                    <span x-text="formatDate(task.deadline)"></span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- КАРТОЧКА ЗАДАЧИ -->
+      <div x-show="page === 'task_detail'" x-data="taskDetailApp()" @open-task.window="loadDetail()">
+        <div class="d-flex align-items-center mb-3 gap-2">
+          <button class="btn btn-sm btn-outline-secondary" @click="page = prevPage || 'tasks'; loadTasks && loadTasks()">
+            <i class="bi bi-arrow-left"></i>
+          </button>
+          <h5 class="mb-0 flex-grow-1 text-truncate" x-text="task?.title || 'Загрузка...'"></h5>
+        </div>
+
+        <div x-show="!task" class="text-center py-5">
+          <div class="spinner-border text-primary"></div>
+        </div>
+
+        <div x-show="task">
+          <!-- Статус -->
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+              <div class="row g-2 align-items-center">
+                <div class="col">
+                  <div class="text-muted small">Статус</div>
+                  <span class="badge fs-6" :class="statusBadgeClass(task?.status)" x-text="statusLabel(task?.status)"></span>
+                </div>
+                <div class="col-auto" x-show="canEdit()">
+                  <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                      Изменить
+                    </button>
+                    <ul class="dropdown-menu">
+                      <li><a class="dropdown-item" href="#" @click.prevent="changeStatus('in_progress')">В работе</a></li>
+                      <li><a class="dropdown-item text-danger" href="#" @click.prevent="changeStatus('critical')">Критично важно</a></li>
+                      <li><a class="dropdown-item text-success" href="#" @click.prevent="changeStatus('closed')">Закрыто</a></li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Детали -->
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+              <dl class="row mb-0 small">
+                <dt class="col-5 text-muted">Магазин</dt>
+                <dd class="col-7" x-text="task?.store?.name || '—'"></dd>
+                <dt class="col-5 text-muted">Раздел</dt>
+                <dd class="col-7" x-text="sectionLabel(task?.section)"></dd>
+                <dt class="col-5 text-muted" x-show="task?.subsection">Подраздел</dt>
+                <dd class="col-7" x-show="task?.subsection" x-text="task?.subsection"></dd>
+                <dt class="col-5 text-muted">Исполнитель</dt>
+                <dd class="col-7" x-text="task?.assignee?.full_name || 'Не назначен'"></dd>
+                <dt class="col-5 text-muted">Срок</dt>
+                <dd class="col-7">
+                  <span x-show="!editDeadline" x-text="task?.deadline ? formatDate(task.deadline) : 'Не указан'"></span>
+                  <div x-show="editDeadline && canEdit()">
+                    <input type="datetime-local" class="form-control form-control-sm" x-model="newDeadline">
+                    <div class="d-flex gap-1 mt-1">
+                      <button class="btn btn-sm btn-primary" @click="saveDeadline()">Сохранить</button>
+                      <button class="btn btn-sm btn-outline-secondary" @click="editDeadline=false">Отмена</button>
+                    </div>
+                  </div>
+                  <button class="btn btn-link btn-sm p-0 ms-1" x-show="!editDeadline && canEdit()" @click="editDeadline=true; newDeadline=task?.deadline?.slice(0,16)">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                </dd>
+                <dt class="col-5 text-muted" x-show="task?.description">Описание</dt>
+                <dd class="col-7" x-show="task?.description" x-text="task?.description"></dd>
+              </dl>
+            </div>
+          </div>
+
+          <!-- Напоминания -->
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-transparent border-0 pb-0">
+              <small class="text-muted fw-semibold">Напоминания</small>
+            </div>
+            <div class="card-body pt-2">
+              <div class="d-flex flex-wrap gap-1 mb-2">
+                <template x-for="p in ['1h','2h','3h','1d','2d','3d']">
+                  <button class="btn btn-sm btn-outline-secondary" @click="addPresetReminder(p)" x-text="presetLabel(p)"></button>
+                </template>
+              </div>
+              <template x-for="r in (task?.reminders || []).filter(r => !r.is_cancelled && !r.is_sent)">
+                <div class="badge bg-light text-dark me-1 mb-1">
+                  <i class="bi bi-bell me-1"></i>
+                  <span x-text="formatDate(r.fire_at)"></span>
+                  — <span x-text="r.reminder_type"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Комментарии -->
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-transparent border-0 pb-0">
+              <small class="text-muted fw-semibold">Комментарии</small>
+            </div>
+            <div class="card-body pt-2">
+              <div x-show="comments.length === 0" class="text-muted small">Нет комментариев</div>
+              <template x-for="c in comments" :key="c.id">
+                <div class="border-bottom pb-2 mb-2">
+                  <div class="d-flex justify-content-between">
+                    <span class="fw-semibold small" x-text="c.author?.full_name || 'Система'"></span>
+                    <span class="text-muted small" x-text="formatDate(c.created_at)"></span>
+                  </div>
+                  <div class="small mt-1" x-text="c.text"></div>
+                  <div class="mt-1 d-flex flex-wrap gap-1">
+                    <template x-for="att in c.attachments">
+                      <a :href="attachmentUrl(task?.id, c.id, att.id)" target="_blank" @click="openExternal($event)" class="badge bg-light text-dark">
+                        <i class="bi bi-paperclip me-1"></i><span x-text="att.original_name"></span>
+                      </a>
+                    </template>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Добавить комментарий -->
+              <div class="mt-2">
+                <textarea class="form-control form-control-sm" rows="2" placeholder="Написать комментарий..." x-model="newComment"></textarea>
+                <div class="d-flex align-items-center gap-2 mt-1">
+                  <input type="file" multiple class="form-control form-control-sm" x-ref="fileInput" style="max-width:200px">
+                  <button class="btn btn-sm btn-primary ms-auto" @click="submitComment()">
+                    <i class="bi bi-send me-1"></i>Отправить
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- История -->
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between">
+              <small class="text-muted fw-semibold">История изменений</small>
+              <button class="btn btn-link btn-sm p-0 small" @click="showHistory=!showHistory" x-text="showHistory?'Скрыть':'Показать'"></button>
+            </div>
+            <div class="card-body pt-2" x-show="showHistory">
+              <template x-for="h in history" :key="h.id">
+                <div class="small text-muted border-bottom pb-1 mb-1">
+                  <span class="fw-semibold text-dark" x-text="h.actor"></span>
+                  — <span x-text="historyField(h.field)"></span>
+                  <span x-show="h.new_value"> → <b x-text="h.new_value"></b></span>
+                  <span class="ms-1" x-text="formatDate(h.created_at)"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- СОЗДАНИЕ ЗАДАЧИ -->
+      <div x-show="page === 'create_task'" x-data="createTaskApp()" x-init="loadForm()">
+        <div class="d-flex align-items-center mb-3 gap-2">
+          <button class="btn btn-sm btn-outline-secondary" @click="page='home'">
+            <i class="bi bi-arrow-left"></i>
+          </button>
+          <h5 class="mb-0">Создать задачу</h5>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+          <div class="card-body">
+            <div class="mb-3">
+              <label class="form-label">Магазин *</label>
+              <select class="form-select" x-model="form.store_id" required>
+                <option value="">Выберите магазин</option>
+                <template x-for="s in stores">
+                  <option :value="s.id" x-text="s.name"></option>
+                </template>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Раздел *</label>
+              <select class="form-select" x-model="form.section" @change="loadTemplates()" required>
+                <option value="">Выберите раздел</option>
+                <option value="preparation">Подготовка к открытию</option>
+                <option value="delivery">Поставки</option>
+                <option value="quality">Качество открытия</option>
+              </select>
+            </div>
+            <div class="mb-3" x-show="form.section">
+              <label class="form-label">Задача из справочника</label>
+              <select class="form-select" x-model="selectedTemplate" @change="applyTemplate()">
+                <option value="">Своя задача</option>
+                <template x-for="t in sectionTemplates">
+                  <option :value="t.id" x-text="(t.subsection ? t.subsection + ': ' : '') + t.name"></option>
+                </template>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Название *</label>
+              <input class="form-control" x-model="form.title" placeholder="Название задачи" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Описание</label>
+              <textarea class="form-control" x-model="form.description" rows="3"></textarea>
+            </div>
+            <div class="mb-3" x-show="currentEmployee?.is_admin">
+              <label class="form-label">Исполнитель</label>
+              <select class="form-select" x-model="form.assignee_id">
+                <option value="">Не назначен</option>
+                <template x-for="e in employees">
+                  <option :value="e.id" x-text="e.full_name"></option>
+                </template>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Срок выполнения</label>
+              <input type="datetime-local" class="form-control" x-model="form.deadline">
+            </div>
+            <button class="btn btn-primary w-100" @click="submitTask()" :disabled="submitting">
+              <span x-show="submitting" class="spinner-border spinner-border-sm me-2"></span>
+              Создать задачу
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- РУКОВОДИТЕЛЬ: ВСЕ ЗАДАЧИ -->
+      <div x-show="page === 'admin_tasks'">
+        <div class="d-flex align-items-center mb-3 gap-2">
+          <button class="btn btn-sm btn-outline-secondary" @click="page='home'">
+            <i class="bi bi-arrow-left"></i>
+          </button>
+          <h5 class="mb-0 flex-grow-1">Все задачи</h5>
+          <a :href="exportUrl()" @click="openExternal($event)" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-file-earmark-excel me-1"></i>Excel
+          </a>
+        </div>
+
+        <!-- Фильтры -->
+        <div class="card mb-3 border-0 shadow-sm">
+          <div class="card-body">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small">Сотрудник</label>
+                <select class="form-select form-select-sm" x-model="adminFilter.assignee_id" @change="loadAllTasks()">
+                  <option value="">Все</option>
+                  <template x-for="e in employees">
+                    <option :value="e.id" x-text="e.full_name"></option>
+                  </template>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small">Магазин</label>
+                <select class="form-select form-select-sm" x-model="adminFilter.store_id" @change="loadAllTasks()">
+                  <option value="">Все</option>
+                  <template x-for="s in stores">
+                    <option :value="s.id" x-text="s.name"></option>
+                  </template>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div x-show="adminTaskList.length === 0" class="text-center py-5 text-muted">
+          <i class="bi bi-inbox fs-1"></i>
+          <p class="mt-2">Задач нет</p>
+        </div>
+        <div class="d-flex flex-column gap-2">
+          <template x-for="task in adminTaskList" :key="task.id">
+            <div class="card border-0 shadow-sm" :class="taskCardClass(task)" @click="openTask(task.id)">
+              <div class="card-body py-2 px-3">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div class="fw-semibold small" x-text="task.title" style="max-width:70%"></div>
+                  <span class="badge" :class="statusBadgeClass(task.status)" x-text="statusLabel(task.status)"></span>
+                </div>
+                <div class="text-muted small mt-1">
+                  <i class="bi bi-shop me-1"></i><span x-text="task.store?.name || '—'"></span>
+                  <span class="ms-2"><i class="bi bi-person me-1"></i><span x-text="task.assignee?.full_name || 'Не назначен'"></span></span>
+                  <span class="ms-2" x-show="task.deadline">
+                    <i class="bi bi-calendar-event me-1"></i><span x-text="formatDate(task.deadline)"></span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- НАСТРОЙКИ -->
+      <div x-show="page === 'settings'" x-data="settingsApp()" x-init="$watch('page', p => p === 'settings' && loadSettings())">
+        <div class="d-flex align-items-center mb-3 gap-2">
+          <button class="btn btn-sm btn-outline-secondary" @click="page='home'">
+            <i class="bi bi-arrow-left"></i>
+          </button>
+          <h5 class="mb-0">Настройки</h5>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-header bg-transparent">
+            <small class="fw-semibold text-muted">Уведомления</small>
+          </div>
+          <div class="card-body">
+            <template x-for="[key, label] in notifTypes">
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" :id="'ns_'+key"
+                  :checked="ns[key]" @change="ns[key] = $event.target.checked">
+                <label class="form-check-label" :for="'ns_'+key" x-text="label"></label>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-header bg-transparent">
+            <small class="fw-semibold text-muted">Тихие часы</small>
+          </div>
+          <div class="card-body">
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="quiet_enabled"
+                :checked="ns.quiet_hours_enabled" @change="ns.quiet_hours_enabled = $event.target.checked">
+              <label class="form-check-label" for="quiet_enabled">Включить тихие часы</label>
+            </div>
+            <div class="row g-2" x-show="ns.quiet_hours_enabled">
+              <div class="col-6">
+                <label class="form-label small">С (час)</label>
+                <input type="number" min="0" max="23" class="form-control" x-model.number="ns.quiet_hours_start">
+              </div>
+              <div class="col-6">
+                <label class="form-label small">До (час)</label>
+                <input type="number" min="0" max="23" class="form-control" x-model.number="ns.quiet_hours_end">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-body">
+            <label class="form-label">Часовой пояс</label>
+            <select class="form-select" x-model="timezone">
+              <option value="Europe/Moscow">Москва (UTC+3)</option>
+              <option value="Europe/Kaliningrad">Калининград (UTC+2)</option>
+              <option value="Europe/Samara">Самара (UTC+4)</option>
+              <option value="Asia/Yekaterinburg">Екатеринбург (UTC+5)</option>
+              <option value="Asia/Omsk">Омск (UTC+6)</option>
+              <option value="Asia/Krasnoyarsk">Красноярск (UTC+7)</option>
+              <option value="Asia/Irkutsk">Иркутск (UTC+8)</option>
+              <option value="Asia/Yakutsk">Якутск (UTC+9)</option>
+              <option value="Asia/Vladivostok">Владивосток (UTC+10)</option>
+              <option value="Asia/Magadan">Магадан (UTC+11)</option>
+              <option value="Asia/Kamchatka">Камчатка (UTC+12)</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn btn-primary w-100" @click="saveSettings()" :disabled="saving">
+          <span x-show="saving" class="spinner-border spinner-border-sm me-2"></span>
+          Сохранить
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Toast уведомления -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+      <div class="toast align-items-center" :class="'text-bg-' + toastType" x-ref="toast" role="alert">
+        <div class="d-flex">
+          <div class="toast-body" x-text="toastMsg"></div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.14.1/cdn.min.js" defer></script>
+  <script src="static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  app:
+    build: ./backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MAX_BOT_TOKEN=${MAX_BOT_TOKEN}
+      - MAX_WEBHOOK_URL=${MAX_WEBHOOK_URL:-}
+      - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:///./data/taskmanager.db}
+      - APP_SECRET_KEY=${APP_SECRET_KEY:-change-me}
+      - ADMIN_MAX_IDS=${ADMIN_MAX_IDS:-}
+      - DEBUG=${DEBUG:-false}
+      - UPLOAD_DIR=/app/uploads
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./frontend:/app/../frontend   # мини-приложение
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Для production с PostgreSQL — раскомментировать:
+  # db:
+  #   image: postgres:16-alpine
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: taskmanager
+  #     POSTGRES_USER: taskmanager
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD", "pg_isready", "-U", "taskmanager"]
+  #     interval: 10s
+  #     retries: 5
+
+# volumes:
+#   pgdata:

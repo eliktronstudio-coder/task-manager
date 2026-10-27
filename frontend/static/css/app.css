@@ -1,0 +1,59 @@
+:root {
+  --bs-primary: #2B5DB8;
+}
+
+body {
+  background: #f4f6fb;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.navbar-brand {
+  font-size: 1rem;
+}
+
+.card {
+  border-radius: 12px;
+}
+
+.card:active {
+  transform: scale(0.98);
+  transition: transform 0.1s;
+}
+
+.badge {
+  font-weight: 500;
+}
+
+/* Статусы строк задач */
+.task-critical {
+  border-left: 4px solid #dc3545 !important;
+}
+
+.task-overdue {
+  border-left: 4px solid #fd7e14 !important;
+}
+
+.task-closed {
+  opacity: 0.6;
+}
+
+/* Скролл списка */
+.d-flex.flex-column {
+  overflow-y: auto;
+}
+
+/* Маленькие эмодзи */
+.bi {
+  vertical-align: -0.1em;
+}
+
+/* Убираем стрелки у number input */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  opacity: 1;
+}
+
+/* Тёмная тема Telegram */
+[data-bs-theme=dark] body {
+  background: #17212b;
+}
