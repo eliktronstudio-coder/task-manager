@@ -15,6 +15,8 @@ logging.basicConfig(
     level=logging.DEBUG if settings.DEBUG else logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
+# httpx пишет каждый запрос с полным URL, а в URL Telegram API лежит токен бота
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 _polling_task: asyncio.Task | None = None

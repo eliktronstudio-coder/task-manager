@@ -1,3 +1,6 @@
+import logging
+import re
+
 from pydantic_settings import BaseSettings
 from pydantic import Field, field_validator
 from typing import Optional
@@ -25,6 +28,16 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+
+    @field_validator("BOT_TOKEN")
+    @classmethod
+    def _clean_token(cls, token: str) -> str:
+        token = token.strip()
+        if not re.fullmatch(r"\d+:[\w-]{30,}", token):
+            logging.getLogger(__name__).error(
+                "BOT_TOKEN выглядит неполным: нужен токен целиком, вида 1234567890:AAxxxx… (цифры, двоеточие, буквы)"
+            )
+        return token
 
     @field_validator("DATABASE_URL")
     @classmethod

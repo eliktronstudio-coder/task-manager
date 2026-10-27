@@ -11,6 +11,11 @@ def _base() -> str:
     return f"{settings.TELEGRAM_API_BASE}/bot{settings.BOT_TOKEN}"
 
 
+def _safe(e: Exception) -> str:
+    """Текст ошибки без токена — httpx кладёт в сообщение полный URL запроса."""
+    return str(e).replace(settings.BOT_TOKEN, "***")
+
+
 async def send_message(
     chat_id: int,
     text: str,
@@ -53,7 +58,7 @@ async def send_message(
             r.raise_for_status()
             return r.json()
     except Exception as e:
-        logger.error("TG send_message error chat_id=%s: %s", chat_id, e)
+        logger.error("TG send_message error chat_id=%s: %s", chat_id, _safe(e))
         return None
 
 
@@ -73,7 +78,7 @@ async def answer_callback(
             r.raise_for_status()
             return True
     except Exception as e:
-        logger.error("TG answer_callback error: %s", e)
+        logger.error("TG answer_callback error: %s", _safe(e))
         return False
 
 
@@ -88,7 +93,7 @@ async def get_updates(offset: Optional[int] = None, timeout: int = 30) -> dict |
             r.raise_for_status()
             return r.json()
     except Exception as e:
-        logger.error("TG get_updates error: %s", e)
+        logger.error("TG get_updates error: %s", _safe(e))
         return None
 
 
@@ -111,7 +116,7 @@ async def set_webhook(url: str, secret_token: Optional[str] = None) -> bool:
             logger.error("Webhook error: %s", result)
             return False
     except Exception as e:
-        logger.error("TG set_webhook error: %s", e)
+        logger.error("TG set_webhook error: %s", _safe(e))
         return False
 
 
@@ -122,7 +127,7 @@ async def delete_webhook() -> bool:
             r.raise_for_status()
             return True
     except Exception as e:
-        logger.error("TG delete_webhook error: %s", e)
+        logger.error("TG delete_webhook error: %s", _safe(e))
         return False
 
 
@@ -138,7 +143,7 @@ async def send_document(chat_id: int, file_bytes: bytes, filename: str, caption:
             r.raise_for_status()
             return r.json()
     except Exception as e:
-        logger.error("TG send_document error: %s", e)
+        logger.error("TG send_document error: %s", _safe(e))
         return None
 
 
@@ -165,5 +170,5 @@ async def set_menu_button(text: str, url: str) -> bool:
             r.raise_for_status()
             return r.json().get("ok", False)
     except Exception as e:
-        logger.error("TG set_menu_button error: %s", e)
+        logger.error("TG set_menu_button error: %s", _safe(e))
         return False
