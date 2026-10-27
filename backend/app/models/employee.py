@@ -1,7 +1,11 @@
 from datetime import datetime
-from sqlalchemy import Integer, String, Boolean, DateTime, ForeignKey, BigInteger
+from sqlalchemy import Integer, String, Boolean, DateTime, ForeignKey, BigInteger, or_
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
+
+POSITION_NOZ = "noz"  # права как у руководителя
+POSITION_IS = "is"    # видит задачи коллег и может взять их на себя
+POSITIONS = (POSITION_NOZ, POSITION_IS)
 
 
 class Employee(Base):
@@ -13,6 +17,7 @@ class Employee(Base):
     full_name: Mapped[str] = mapped_column(String(200), nullable=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    position: Mapped[str | None] = mapped_column(String(20), nullable=True)
     timezone: Mapped[str] = mapped_column(String(50), default="Europe/Moscow")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -25,6 +30,18 @@ class Employee(Base):
     tasks_created: Mapped[list["Task"]] = relationship(
         "Task", foreign_keys="Task.creator_id", back_populates="creator"
     )
+
+    @property
+    def is_manager(self) -> bool:
+        return self.is_admin or self.position == POSITION_NOZ
+
+    @property
+    def can_take_tasks(self) -> bool:
+        return self.is_manager or self.position == POSITION_IS
+
+    @classmethod
+    def manager_filter(cls):
+        return or_(cls.is_admin.is_(True), cls.position == POSITION_NOZ)
 
 
 class NotificationSettings(Base):

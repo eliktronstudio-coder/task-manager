@@ -99,7 +99,7 @@ async def _check_overdue():
         # Получаем всех администраторов
         admins_result = await session.execute(
             select(Employee)
-            .where(and_(Employee.is_admin.is_(True), Employee.is_active.is_(True)))
+            .where(and_(Employee.manager_filter(), Employee.is_active.is_(True)))
             .options(selectinload(Employee.notification_settings))
         )
         admins = admins_result.scalars().all()

@@ -79,6 +79,14 @@ function statusBadgeClass(s) {
   return m[s] || 'bg-secondary';
 }
 
+function positionLabel(p) {
+  return { noz: 'НОЗ', is: 'ИС' }[p] || '';
+}
+
+function employeeLabel(e) {
+  return e.position ? `${e.full_name} · ${positionLabel(e.position)}` : e.full_name;
+}
+
 function sectionLabel(s) {
   const m = { preparation: 'Подготовка исходников', delivery: 'Поставки', quality: 'Качество открытия' };
   return m[s] || s;
@@ -111,7 +119,7 @@ function taskApp() {
     toastType: 'success',
 
     // Утилиты
-    formatDate, statusLabel, statusBadgeClass, sectionLabel, taskCardClass, isOverdue,
+    formatDate, statusLabel, statusBadgeClass, sectionLabel, taskCardClass, isOverdue, employeeLabel,
 
     async init() {
       setupTelegram();
@@ -175,7 +183,11 @@ function taskApp() {
       const params = new URLSearchParams();
       if (this.adminFilter.assignee_id) params.set('assignee_id', this.adminFilter.assignee_id);
       if (this.adminFilter.store_id) params.set('store_id', this.adminFilter.store_id);
-      this.adminTaskList = await api('GET', '/tasks/?' + params.toString());
+      const tasks = await api('GET', '/tasks/?' + params.toString());
+      // ИС видит здесь только чужие задачи — свои у него в «Мои задачи»
+      this.adminTaskList = this.currentEmployee?.is_manager
+        ? tasks
+        : tasks.filter(t => t.assignee?.id !== this.currentEmployee?.id);
     },
 
     filterAndGo(status) {
@@ -193,6 +205,22 @@ function taskApp() {
       if (this.page !== 'task_detail') this.prevPage = this.page;
       this.page = 'task_detail';
       window.dispatchEvent(new CustomEvent('open-task'));
+    },
+
+    async openEmployees() {
+      this.employees = await api('GET', '/employees/');
+      this.page = 'employees';
+    },
+
+    async setPosition(employee, value) {
+      try {
+        const updated = await api('PATCH', `/employees/${employee.id}`, { position: value || null });
+        Object.assign(employee, updated);
+        this.showToast(value ? `Должность: ${positionLabel(value)}` : 'Должность снята');
+      } catch (e) {
+        this.showToast('Ошибка: ' + e.message, 'danger');
+        this.employees = await api('GET', '/employees/');
+      }
     },
 
     exportUrl() {
@@ -225,7 +253,7 @@ function taskDetailApp() {
     newDeadline: '',
     showHistory: false,
 
-    formatDate, statusLabel, statusBadgeClass, sectionLabel,
+    formatDate, statusLabel, statusBadgeClass, sectionLabel, employeeLabel,
 
     async loadDetail() {
       const id = this.selectedTaskId;
@@ -247,8 +275,25 @@ function taskDetailApp() {
     canEdit() {
       const emp = this.currentEmployee;
       if (!emp) return false;
-      if (emp.is_admin) return true;
+      if (emp.is_manager) return true;
       return this.task?.assignee?.id === emp.id;
+    },
+
+    canTake() {
+      const emp = this.currentEmployee;
+      return !!(emp?.can_take_tasks && this.task && this.task.status !== 'closed'
+        && this.task.assignee?.id !== emp.id);
+    },
+
+    async takeTask() {
+      try {
+        this.task = await api('POST', `/tasks/${this.task.id}/take`);
+        this.showToast('Задача теперь ваша');
+        this.history = await api('GET', `/tasks/${this.task.id}/history`);
+        await this.loadCounts();
+      } catch (e) {
+        this.showToast('Ошибка: ' + e.message, 'danger');
+      }
     },
 
     async changeStatus(status) {

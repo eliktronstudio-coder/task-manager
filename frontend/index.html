@@ -121,8 +121,23 @@
               </div>
             </div>
           </div>
-          <!-- Руководитель: все задачи -->
-          <div class="col-12" x-show="currentEmployee?.is_admin">
+          <!-- ИС: задачи коллег -->
+          <div class="col-12" x-show="currentEmployee?.can_take_tasks && !currentEmployee?.is_manager">
+            <div class="card border-0 shadow-sm" @click="page='admin_tasks'; loadAllTasks()">
+              <div class="card-body d-flex align-items-center">
+                <div class="rounded-3 p-3 bg-info bg-opacity-10 me-3">
+                  <i class="bi bi-people fs-4 text-info"></i>
+                </div>
+                <div>
+                  <div class="fw-semibold">Задачи коллег</div>
+                  <div class="text-muted small">Можно взять задачу на себя</div>
+                </div>
+                <i class="bi bi-chevron-right ms-auto text-muted"></i>
+              </div>
+            </div>
+          </div>
+          <!-- Руководитель и НОЗ: все задачи -->
+          <div class="col-12" x-show="currentEmployee?.is_manager">
             <div class="card border-0 shadow-sm border-primary" @click="page='admin_tasks'; loadAllTasks()">
               <div class="card-body d-flex align-items-center">
                 <div class="rounded-3 p-3 bg-primary bg-opacity-20 me-3">
@@ -131,6 +146,20 @@
                 <div>
                   <div class="fw-semibold text-primary">Все задачи (руководитель)</div>
                   <div class="text-muted small">Сводка по сотрудникам и магазинам</div>
+                </div>
+                <i class="bi bi-chevron-right ms-auto text-muted"></i>
+              </div>
+            </div>
+          </div>
+          <div class="col-12" x-show="currentEmployee?.is_manager">
+            <div class="card border-0 shadow-sm" @click="openEmployees()">
+              <div class="card-body d-flex align-items-center">
+                <div class="rounded-3 p-3 bg-secondary bg-opacity-10 me-3">
+                  <i class="bi bi-person-badge fs-4 text-secondary"></i>
+                </div>
+                <div>
+                  <div class="fw-semibold">Сотрудники</div>
+                  <div class="text-muted small">Должности НОЗ и ИС</div>
                 </div>
                 <i class="bi bi-chevron-right ms-auto text-muted"></i>
               </div>
@@ -260,6 +289,9 @@
                   </div>
                 </div>
               </div>
+              <button class="btn btn-sm btn-outline-info w-100 mt-2" x-show="canTake()" @click="takeTask()">
+                <i class="bi bi-person-check me-1"></i>Взять на себя
+              </button>
             </div>
           </div>
 
@@ -274,7 +306,7 @@
                 <dt class="col-5 text-muted" x-show="task?.subsection">Подраздел</dt>
                 <dd class="col-7" x-show="task?.subsection" x-text="task?.subsection"></dd>
                 <dt class="col-5 text-muted">Исполнитель</dt>
-                <dd class="col-7" x-text="task?.assignee?.full_name || 'Не назначен'"></dd>
+                <dd class="col-7" x-text="task?.assignee ? employeeLabel(task.assignee) : 'Не назначен'"></dd>
                 <dt class="col-5 text-muted">Срок</dt>
                 <dd class="col-7">
                   <span x-show="!editDeadline" x-text="task?.deadline ? formatDate(task.deadline) : 'Не указан'"></span>
@@ -364,7 +396,8 @@
                 <div class="small text-muted border-bottom pb-1 mb-1">
                   <span class="fw-semibold text-dark" x-text="h.actor"></span>
                   — <span x-text="historyField(h.field)"></span>
-                  <span x-show="h.new_value"> → <b x-text="h.new_value"></b></span>
+                  <span x-show="h.new_value && h.field !== 'assignee_id'"> → <b x-text="h.new_value"></b></span>
+                  <span x-show="h.note" x-text="'(' + h.note + ')'"></span>
                   <span class="ms-1" x-text="formatDate(h.created_at)"></span>
                 </div>
               </template>
@@ -419,12 +452,12 @@
               <label class="form-label">Описание</label>
               <textarea class="form-control" x-model="form.description" rows="3"></textarea>
             </div>
-            <div class="mb-3" x-show="currentEmployee?.is_admin">
+            <div class="mb-3" x-show="currentEmployee?.is_manager">
               <label class="form-label">Исполнитель</label>
               <select class="form-select" x-model="form.assignee_id">
                 <option value="">Не назначен</option>
                 <template x-for="e in employees">
-                  <option :value="e.id" x-text="e.full_name"></option>
+                  <option :value="e.id" x-text="employeeLabel(e)"></option>
                 </template>
               </select>
             </div>
@@ -446,8 +479,8 @@
           <button class="btn btn-sm btn-outline-secondary" @click="page='home'">
             <i class="bi bi-arrow-left"></i>
           </button>
-          <h5 class="mb-0 flex-grow-1">Все задачи</h5>
-          <a :href="exportUrl()" @click="openExternal($event)" class="btn btn-sm btn-outline-success">
+          <h5 class="mb-0 flex-grow-1" x-text="currentEmployee?.is_manager ? 'Все задачи' : 'Задачи коллег'"></h5>
+          <a :href="exportUrl()" @click="openExternal($event)" class="btn btn-sm btn-outline-success" x-show="currentEmployee?.is_manager">
             <i class="bi bi-file-earmark-excel me-1"></i>Excel
           </a>
         </div>
@@ -461,7 +494,7 @@
                 <select class="form-select form-select-sm" x-model="adminFilter.assignee_id" @change="loadAllTasks()">
                   <option value="">Все</option>
                   <template x-for="e in employees">
-                    <option :value="e.id" x-text="e.full_name"></option>
+                    <option :value="e.id" x-text="employeeLabel(e)"></option>
                   </template>
                 </select>
               </div>
@@ -492,11 +525,46 @@
                 </div>
                 <div class="text-muted small mt-1">
                   <i class="bi bi-shop me-1"></i><span x-text="task.store?.name || '—'"></span>
-                  <span class="ms-2"><i class="bi bi-person me-1"></i><span x-text="task.assignee?.full_name || 'Не назначен'"></span></span>
+                  <span class="ms-2"><i class="bi bi-person me-1"></i><span x-text="task.assignee ? employeeLabel(task.assignee) : 'Не назначен'"></span></span>
                   <span class="ms-2" x-show="task.deadline">
                     <i class="bi bi-calendar-event me-1"></i><span x-text="formatDate(task.deadline)"></span>
                   </span>
                 </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- СОТРУДНИКИ -->
+      <div x-show="page === 'employees'">
+        <div class="d-flex align-items-center mb-3 gap-2">
+          <button class="btn btn-sm btn-outline-secondary" @click="page='home'">
+            <i class="bi bi-arrow-left"></i>
+          </button>
+          <h5 class="mb-0 flex-grow-1">Сотрудники</h5>
+        </div>
+        <p class="text-muted small">
+          <b>НОЗ</b> — права руководителя. <b>ИС</b> — видит задачи коллег и может взять их на себя.
+          Сотрудник появляется здесь после того, как напишет боту <code>/start</code>.
+        </p>
+        <div class="d-flex flex-column gap-2">
+          <template x-for="e in employees" :key="e.id">
+            <div class="card border-0 shadow-sm">
+              <div class="card-body py-2 px-3 d-flex align-items-center gap-2">
+                <div class="flex-grow-1">
+                  <div class="fw-semibold small" x-text="e.full_name"></div>
+                  <div class="text-muted small">
+                    <span x-show="e.username" x-text="'@' + e.username"></span>
+                    <span class="badge bg-primary ms-1" x-show="e.is_admin">Руководитель</span>
+                  </div>
+                </div>
+                <select class="form-select form-select-sm w-auto" :value="e.position || ''"
+                        @change="setPosition(e, $event.target.value)" :disabled="e.is_admin">
+                  <option value="">Без должности</option>
+                  <option value="noz">НОЗ</option>
+                  <option value="is">ИС</option>
+                </select>
               </div>
             </div>
           </template>

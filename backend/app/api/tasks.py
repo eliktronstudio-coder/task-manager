@@ -23,7 +23,7 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 async def _get_admins(db: AsyncSession) -> list[Employee]:
     result = await db.execute(
         select(Employee)
-        .where(and_(Employee.is_admin.is_(True), Employee.is_active.is_(True)))
+        .where(and_(Employee.manager_filter(), Employee.is_active.is_(True)))
         .options(selectinload(Employee.notification_settings))
     )
     return result.scalars().all()
@@ -35,15 +35,22 @@ async def _load_task(task_id: int, db: AsyncSession) -> Task:
         .where(Task.id == task_id)
         .options(
             selectinload(Task.assignee).selectinload(Employee.notification_settings),
-            selectinload(Task.creator),
+            selectinload(Task.creator).selectinload(Employee.notification_settings),
             selectinload(Task.store),
             selectinload(Task.reminders),
         )
+        # без этого после смены исполнителя в ответе остаётся старый, уже загруженный в сессию
+        .execution_options(populate_existing=True)
     )
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(404, "Задача не найдена")
     return task
+
+
+def _require_actor(actor: Optional[Employee]):
+    if not actor:
+        raise HTTPException(401, "Откройте приложение через бота в Telegram")
 
 
 def _fmt(value) -> str:
@@ -97,6 +104,10 @@ async def create_task(
     creator: Optional[Employee] = Depends(current_employee),
     db: AsyncSession = Depends(get_db),
 ):
+    _require_actor(creator)
+    if not creator.is_manager and data.assignee_id not in (None, creator.id):
+        raise HTTPException(403, "Назначать задачи другим может только руководитель")
+
     task = Task(
         **data.model_dump(exclude={"template_id"}),
         creator_id=creator.id if creator else None,
@@ -131,10 +142,16 @@ async def update_task(
     db: AsyncSession = Depends(get_db),
 ):
     task = await _load_task(task_id, db)
+    _require_actor(actor)
+    changes = data.model_dump(exclude_none=True)
+    if not actor.is_manager:
+        if task.assignee_id != actor.id:
+            raise HTTPException(403, "Менять можно только свои задачи")
+        if changes.get("assignee_id", actor.id) != actor.id:
+            raise HTTPException(403, "Назначать задачи другим может только руководитель")
+
     admins = await _get_admins(db)
     store_name = task.store.name if task.store else "?"
-    old_assignee = task.assignee
-    changes = data.model_dump(exclude_none=True)
 
     notify_status = None
     notify_deadline = False
@@ -180,6 +197,38 @@ async def update_task(
     if notify_assignee and task.assignee:
         await notifications.notify_new_task(task.assignee, task, store_name)
 
+    return task
+
+
+@router.post("/{task_id}/take", response_model=TaskOut)
+async def take_task(
+    task_id: int,
+    actor: Optional[Employee] = Depends(current_employee),
+    db: AsyncSession = Depends(get_db),
+):
+    """Взять задачу коллеги на себя (ИС, НОЗ и руководитель)."""
+    task = await _load_task(task_id, db)
+    _require_actor(actor)
+    if not actor.can_take_tasks:
+        raise HTTPException(403, "Брать задачи коллег может только ИС или руководитель")
+    if task.status == TaskStatus.CLOSED:
+        raise HTTPException(400, "Задача уже закрыта")
+    if task.assignee_id == actor.id:
+        return task
+
+    previous = task.assignee
+    _add_history(
+        db, task_id, actor.id, "assignee_id",
+        str(previous.id) if previous else None, str(actor.id), note="взял задачу на себя",
+    )
+    task.assignee_id = actor.id
+    task.updated_at = datetime.utcnow()
+    await db.commit()
+    task = await _load_task(task_id, db)
+
+    if previous:
+        store_name = task.store.name if task.store else "?"
+        await notifications.notify_task_taken(previous, task, store_name, actor.full_name)
     return task
 
 

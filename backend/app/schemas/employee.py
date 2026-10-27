@@ -1,6 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Literal, Optional
 
 
 class NotificationSettingsOut(BaseModel):
@@ -29,10 +29,14 @@ class NotificationSettingsUpdate(BaseModel):
     quiet_hours_end: Optional[int] = Field(None, ge=0, le=23)
 
 
+Position = Literal["noz", "is"]
+
+
 class EmployeeBase(BaseModel):
     full_name: str
     username: Optional[str] = None
     is_admin: bool = False
+    position: Optional[Position] = None
     timezone: str = "Europe/Moscow"
 
 
@@ -45,6 +49,7 @@ class EmployeeUpdate(BaseModel):
     username: Optional[str] = None
     is_admin: Optional[bool] = None
     is_active: Optional[bool] = None
+    position: Optional[Position] = None
     timezone: Optional[str] = None
 
 
@@ -52,6 +57,8 @@ class EmployeeOut(EmployeeBase):
     id: int
     tg_user_id: int
     is_active: bool
+    is_manager: bool
+    can_take_tasks: bool
     created_at: datetime
     notification_settings: Optional[NotificationSettingsOut] = None
 

@@ -66,6 +66,7 @@ class AssigneeShort(BaseModel):
     id: int
     full_name: str
     tg_user_id: int
+    position: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

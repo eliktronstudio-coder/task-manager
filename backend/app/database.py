@@ -44,3 +44,12 @@ async def init_db():
     from app.models import employee, store, task, comment, reminder, history  # noqa: F401
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_add_missing_columns)
+
+
+def _add_missing_columns(sync_conn):
+    """create_all не добавляет колонки в существующие таблицы, а Alembic пока не используется."""
+    from sqlalchemy import inspect, text
+    columns = {c["name"] for c in inspect(sync_conn).get_columns("employees")}
+    if "position" not in columns:
+        sync_conn.execute(text("ALTER TABLE employees ADD COLUMN position VARCHAR(20)"))

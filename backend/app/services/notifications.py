@@ -85,6 +85,19 @@ async def notify_status_changed(employee: Employee, task: Task, store_name: str,
     await tg.send_message(employee.tg_user_id, text, buttons)
 
 
+async def notify_task_taken(employee: Employee, task: Task, store_name: str, taker_name: str):
+    if not await _can_notify(employee, "status_change"):
+        return
+    text = (
+        f"🤝 <b>Вашу задачу взял коллега</b>\n\n"
+        f"<b>{task.title}</b>\n"
+        f"🏪 {store_name}\n"
+        f"Теперь исполнитель: {taker_name}"
+    )
+    buttons = [[tg.btn_webapp("📂 Открыть", _app_url(task.id))]]
+    await tg.send_message(employee.tg_user_id, text, buttons)
+
+
 async def notify_deadline_changed(employee: Employee, task: Task, store_name: str):
     if not await _can_notify(employee, "deadline_change"):
         return
